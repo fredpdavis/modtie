@@ -1,0 +1,379 @@
+\documentclass[11pt]{article}
+\usepackage[nohead,margin=2cm,includefoot]{geometry}
+\geometry{verbose,letterpaper,tmargin=1in,bmargin=1in,lmargin=1in,rmargin=1in}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{hyperref}
+\usepackage{listings}
+\title{MODTIE developers guide. v 1.11\\
+\includegraphics[scale=1]{modtie_logo.pdf}
+}
+\author{Fred P. Davis, HHMI-JFRC\\{\tt davisf@janelia.hhmi.org}\\\url{http://pibase.janelia.org/modtie}}
+\begin{document}
+
+\maketitle
+
+
+\section*{Introduction}
+MODTIE is a program that predicts binary and higher-order interactions among a set of protein sequences, based on similarity to template complexes of known structure. The routines to implement the method, benchmark it, and use it to make small-scale and genome-wide predictions are stored in a Perl library and called from short driver scripts. Here I describe the data files used by the program, and the layout of the core routines.
+
+\tableofcontents
+
+\section{Data files}
+
+\subsection{Static}
+\begin{enumerate}
+   \item Statistical potentials (modtie\_data/potentials)
+   \item Template interface list (modtie\_data/templates)
+   \item PIBASE tables (modtie\_data/pibase\_tod, modtie\_data/pibase\_metatod)
+   \item Template domain PDB files (modtie\_data/pibase\_data)
+\end{enumerate}
+
+\subsection{Dynamic}
+These files are obtained through the MODBASE webserver as needed during a MODTIE run, and stored permanently:
+\begin{enumerate}
+   \item Model PDB files. stored in location specified in modtie.pm:
+\lstset{breaklines=true,language=bash}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{local_modbase_models_dir}
+\end{lstlisting}
+
+   \item Model alignment files
+\lstset{breaklines=true,language=bash}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{local_modbase_ali_dir}
+\end{lstlisting}
+
+\end{enumerate}
+
+Alternatively, these files can also be obtained through a local installation of the MODBASE mysql database (specify {\tt -modbase\_access local}). By default, the files are obtained via the website.
+
+\subsection{Generated}
+The following files are generated and stored during a MODTIE run, and can be reused in future runs:
+\begin{itemize}
+   \item Target domains - PDB files containing the domains assigned in the target sequences. location specified in modtie.pm:
+\lstset{breaklines=true,language=bash}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{target_domains_dir}
+\end{lstlisting}
+
+   \item Target-template domain alignments - MODELLER SALIGN results for structural alignment of target and template domains. location specified in modtie.pm:
+\lstset{breaklines=true,language=bash}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{salign_ali_dir}
+\end{lstlisting}
+\end{itemize}
+
+\section{Code layout}
+The core routines are implemented in a Perl library (src/perl\_api):
+\begin{itemize}
+   \item modtie.pm - core prediction routines - I/O, processing, run logic
+   \item SGE.pm - routines to interact with SGE compute cluster
+   \item modtie/pibase.pm - routines to interact with PIBASE data files; most reused from PIBASE.
+   \item modtie/complexes.pm - routines to predict higher-order complexes
+   \item modtie/potential.pm - routines to build/use statistical potential
+   \item modtie/yeast.pm - routines to assess yeast predictions
+\end{itemize}
+
+Several additional programs (src/auxil) are used to interact with PDB files, all part of the original PIBASE package. source code and o64 binaries are provided for the C programs.
+\begin{itemize}
+   \item altloc\_check - C program that checks if a PDB file has any alternative location field specified
+   \item altloc\_filter - Perl script that removes alternative locations from a PDB file.
+   \item kdcontacts - C program that computes interatomic distances using a kd-trees algorithm
+   \item subset\_extractor - C program that extracts a chain/residue range from a PDB file
+\end{itemize}
+
+I describe the core modtie.pm routines and their functionality below.
+
+\subsection{Run routines}
+
+\begin{enumerate}
+\item {\bf runmodtie\_modbase()} - Predicts inter- or intra-set interactions using homology models deposited in MODBASE. This routine requires either local or remote (default) access to model information, PDB files, and alignment files stored in MODBASE (\url{http://salilab.org/modbase}).
+
+\item {\bf runmodtie\_scorecomplex()} - Scores the PDB file of a protein complex using the MODTIE statistical potential and domains defined in the input
+
+\item {\bf runmodtie\_targetstrxs\_template()} - Scores a putative complex given PDB files of the individual components and a template complex.
+
+\end{enumerate}
+
+\subsection{Core prediction routines}
+
+\begin{enumerate}
+\item {\bf model\_2\_domains()} - Assign SCOP domains to MODBASE models.
+
+\item {\bf seqid\_2\_domains()} - Assign SCOP domains to MODBASE sequences.
+
+\item {\bf seqid\_2\_domainarch()} - Compute SCOP domain architecture for MODBASE sequences.
+
+\item {\bf scoring\_main()} - Main prediction routine: identifies candidate complexes, performs necessary alignments, and scores candidate complexes using the MODTIE statistical potentials.
+
+\item {\bf salign\_targ\_tmpl\_domains()} - Uses the MODELLER SALIGN routine to align target and template domains.
+
+\item {\bf cut\_domains()} - Extracts target domains from model PDB files.
+\end{enumerate}
+
+\subsection{Core method implementation routines}
+
+\begin{enumerate}
+
+\item {\bf extract\_required\_pibase\_datafiles()} - Get the required datafiles (subsets\_residues table-on-disk, bdp\_residues table-on-disk, template domain PDB files).
+
+\begin{verbatim}
+perl -e 'use modtie; modtie::extract_required_pibase_datafiles();' > pibase_datafile.log
+\end{verbatim}
+
+\item {\bf generate\_interface\_list()} - Generates template interface and interface cluster assignment lists by querying pibase.scop\_interface\_clusters.
+
+\begin{verbatim}
+perl -e 'use modtie; modtie::generate_interface_list();'
+\end{verbatim}
+
+\item {\bf buildpotential\_count()} - Calculates and counts interatomic contacts to populate the statistical potential. The current statistical potential was built from interfaces in PIBASE v2005 with at least 1000 interatomic contacts at a distance threshold of 6.05 \AA.
+
+\item {\bf buildpotential\_postcalc()} - Builds the statistical potential from the contact counts.
+
+\item {\bf runmodtie\_benchmark()} - Benchmarks the statistical potentials using complexes of known structure.
+
+\item {\bf runmodtie\_roc()} - Builds receiver-operator curves characterizing statistical potential accuracies.
+
+\end{enumerate}
+
+\subsection{Ancillary run modes}
+
+\begin{enumerate}
+
+\item {\bf format\_modbase\_output()} - Format predicted complex results files for import into MODBASE.
+
+\item {\bf assess\_yeast\_results()} - Routines to filter yeast predictions using functional annotation, subcellular localization, and to benchmark the predictions against known complexes in MIPS, BIND, and Cellzome.
+
+\end{enumerate}
+
+\end{document}
+
+\section{Module layout}
+The routines are roughly organized into three categories: (L) low-level routines, (M) intermediate interfaces, and (H) high-level single command interfaces.
+The routines are described in chronological order of a typical MODTIE run.
+
+\subsection{External Interface}
+
+\begin{itemize}
+   \item runmodtie\_modpiperun(\{ run =$>$ modpipe\_run\_id, internal =$>$ [0|1]\})
+   \begin{itemize}
+      \item run - modpipe run id
+      \item internal - assess interactions between proteins within the modpipe run
+   \end{itemize}
+\end{itemize}
+
+
+\subsection{Domain assignment}
+
+\subsubsection{Models}
+
+\begin{itemize}
+   \item \_getstdinput\_model\_2\_domains (L)
+   \item model\_2\_domains (I)
+   \item assign\_model\_domains\_preload (L)
+   \item assign\_model\_domains (L)
+\end{itemize}
+
+\subsubsection{Sequences}
+\begin{itemize}
+   \item \_getstdinput\_seq\_2\_domains (L)
+   \item seq\_2\_domains (I)
+   \item assign\_seq\_domains (L)
+
+   \item \_getstdinput\_seq\_2\_domainarch (L)
+   \item seq\_2\_domainarch (I)
+   \item assign\_seq\_domainarch (L)
+\end{itemize}
+
+\subsection{Interaction Prediction}
+
+requires:
+\begin{itemize}
+   \item modbase dbh access ({\it eg} alto)
+   \item pibase on disk access
+\end{itemize}
+
+\begin{itemize}
+   \item scoring\_main (M)\\
+
+   \item scoring\_pibase\_preload (L)
+   \item \_parse\_domarchs (old get\_modbase\_scop\_info (L))
+
+
+   \item readin\_tmpllist
+   \item readin\_seqid\_aaseq\_domarch
+   \item readin\_potentials (L)
+   \item \_readpot\_pi (L)
+   \item \_readpot\_smy (L)
+
+   \item cutdom\_main (L)
+
+   \item get\_subsres (L)
+
+   \item salign\_targ\_tmpl\_domains (M)
+
+   \item contact\_equiv (L)
+   \item calc\_zscore (L)
+   \item res\_equiv (L)
+   \item fy\_shuffle (L)
+   \item calc\_res\_pairs (L)
+   \item get\_domain\_contacts (L)
+   \item score\_potential (L)
+   \item get\_rand\_score (L)
+   \item seq\_2\_arr (L)
+   \item salign\_resequiv\_parse (L)
+   \item get\_template\_info (L)
+   \item calcula\_resequiv (L)
+   \item get\_weirdo\_resser (L)
+
+\end{itemize}
+
+\subsection{Complexes}
+
+\begin{itemize}
+   \item list\_complexes
+   \item recure\_composition
+   \item assess\_selfcons
+   \item is\_connected
+   \item dfs\_conncomp
+   \item dfs\_visit
+\end{itemize}
+
+\section{Old codebase}
+
+\subsection{model\_domains.modbase.pl}
+
+\begin{enumerate}
+   \item main
+   \begin{itemize}
+      \item pibase::PDB::residues::get\_weirdo\_resser
+      \item pibase::rawselect\_tod
+   \end{itemize}
+
+   \item calcula\_resequiv - returns residue equivalency information assuming 
+   \begin{itemize}
+      \item pibase::modeller::parse\_ali
+   \end{itemize}
+
+   \item get\_metali - get metainformation from PIR format MODBASE alignment
+\end{enumerate}
+
+\subsection{annotate\_domains.modbase.altopar.eval.pl}
+\begin{enumerate}
+   \item main
+\end{enumerate}
+
+\subsection{domain\_arch.alto\_par.modbase.pl}
+\begin{enumerate}
+   \item main
+\end{enumerate}
+
+\subsection{cutdom.yeastSGD1.prep.pl, cutdom.calc.pl}
+
+cutdom.yeastSGD1.prep.pl
+\begin{enumerate}
+   \item main
+   \item get\_modbase\_scop\_info
+\end{enumerate}
+
+cutdom.calc.pl
+\begin{enumerate}
+   \item main
+   \begin{itemize}
+      \item pibase::locate\_binaries
+      \item tempdir, tempfile
+      \item pibase::PDB::subsets::subset\_extract
+      \item safe\_move
+   \end{itemize}
+\end{enumerate}
+
+
+\subsection{runsalign.prep.pl, runsalign.calc.pl}
+
+runsalign.calc.pl
+\begin{enumerate}
+   \item main
+   \begin{itemize}
+      \item File::Temp::tempdir , tempfile
+      \item pibase::safe\_copy, safe\_move
+      \item pibase::modeller:get\_salign
+      \item pibase::modeller:get\_salign
+   \end{itemize}
+\end{enumerate}
+
+\subsection{scoring.alt050623.pl}
+\begin{enumerate}
+   \item main
+   \item complete\_params
+   \item readin\_tmpl
+   \item readin\_seq
+   \item get\_options
+   \item rightali
+   \item seq\_2\_arr
+   \item get\_modbase\_scop\_info
+   \item res\_equiv
+   \item fy\_shuffle
+   \item calc\_zscore
+   \item contact\_equiv
+   \item get\_subsres
+   \item get\_domain\_contacts
+   \item calc\_res\_pairs
+   \item get\_potentials
+   \item get\_rand\_score
+   \item score\_potential
+   \item \_readpot\_smy
+   \item \_readpot\_pi
+   \item calcula\_resequiv
+   \item get\_templateinfo
+   \item salign\_resequiv\_parse
+   \item get\_saligns\_gz
+   \item min
+\end{enumerate}
+
+\subsection{binary2complex.pl}
+\begin{enumerate}
+   \item main
+\end{enumerate}
+
+
+\subsection{Candidate}
+creates all materials necessary to plug into assessment module
+
+output is either a single complexed strx or two sequences with aln to a complexed strx
+
+\begin{tabular}{rcccccc|cccccc}
+\hline
+  & seq1 & res1 & seq2 & res2 & strx1 & strx2 & aln1 & aln2 & tmpl1 & res1 & tmpl2 & res2 \\
+\hline
+1 &  x   &      &  x   &      &       &       &      &      &       &      &       &    \\
+1 &  x   &  x   &  x   &  x   &       &       &      &      &       &      &       &    \\
+1 &  x   &  x   &  x   &  x   &       &       &      &      &       &      &       &    \\
+\hline
+\end{tabular}
+
+
+\subsection{Assessment}
+
+\begin{tabular}{rcccccc|cccccc}
+\hline
+  & seq1 & res1 & seq2 & res2 & strx1 & strx2 & aln1 & aln2 & tmpl1 & res1 & tmpl2 & res2 \\
+\hline
+1 &  x   &      &  x   &      &       &       &   x  &  x   &   x   &      &   x   &    \\
+2 &  x   &  x   &  x   &  x   &       &       &      &      &       &      &       &    \\
+3 &  x   &  x   &  x   &  x   &       &       &      &      &       &      &       &    \\
+\hline
+\end{tabular}
+
+
+\end{document}

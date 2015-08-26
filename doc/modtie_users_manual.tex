@@ -1,0 +1,524 @@
+\documentclass[11pt]{article}
+\usepackage[nohead,margin=2cm,includefoot]{geometry}
+\geometry{verbose,letterpaper,tmargin=1in,bmargin=1in,lmargin=1in,rmargin=1in}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\title{MODTIE users guide. v 1.11\\
+\includegraphics[scale=1]{modtie_logo.pdf}
+}
+\author{Fred P. Davis\\{\tt fredpdavis@gmail.com}\\\url{http://fredpdavis.com/modtie}}
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+MODTIE predicts binary protein interactions and higher-order protein complexes from a set of protein sequences based on their similarity to template complexes of known structure. This document describes how to install and run MODTIE.
+\end{abstract}
+
+\tableofcontents
+
+This version of MODTIE (v1.11) uses templates from PIBASE version 2010, released September 2010 (\url{http://fredpdavis.com/pibase}).
+
+\part{Installing MODTIE}
+
+\section{Downloading}
+
+\subsection{Software}
+The MODTIE package is available at \url{http://fredpdavis.com/modtie}. Obtain the latest release and unpack this file in the directory you'd like to install it ({\it eg}, /usr/local/software/modtie)
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+mv modtie_v1.11.tar.gz /usr/local/software/modtie
+cd /usr/local/software/modtie
+tar xvfz modtie_v1.11.tar.gz
+\end{lstlisting}
+
+\subsection{Data files}
+Four data files need to be downloaded separately:
+\begin{enumerate}
+\item \url{https://zenodo.org/record/29594/files/modtie_data.modtie_v1.11.tgz} (55 MB)
+\item \url{https://zenodo.org/record/29594/files/pibase2010_subsets_residues.modtie_v1.11.tar} (519 MB)
+\item \url{https://zenodo.org/record/29594/files/pibase2010_bdp_residues.modtie_v1.11.tar} (680 MB)
+\item \url{https://zenodo.org/record/29594/files/pibase2010_data.modtie_v1.11.tar} (425 MB)
+\end{enumerate}
+
+Move the first file into the main directory and uncompress it there:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+cd /usr/local/software/modtie
+tar xvfz modtie_data.modtie_v1.11.tgz
+\end{lstlisting}
+
+Then move the remaining 3 files into the new modtie\_data directory and uncompress them there:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+cd modtie_data
+tar xvf pibase2010_data.modtie_v1.11.tar
+tar xvf pibase2010_bdp_residues.modtie_v1.11.tar
+tar xvf pibase2010_subsets_residues.modtie_v1.11.tar
+\end{lstlisting}
+
+\section{Installing}
+
+\subsection{Prerequisite: wget}
+GNU wget is used to retrieve files from the MODBASE webserver. Most linux machines have this installed by default. wget is available from \url{http://www.gnu.org/software/wget/}
+
+\subsection{Prerequisite: MODELLER}
+The SALIGN module of MODELLER (Sali and Blundell, {\it J Mol. Biol.} 1993) is used to calculate structural alignments of target-template domains. MODELLER is available at \url{http://salilab.org/modeller}.
+
+\subsection{Prerequisite: PDB mirror}
+A local mirror of the PDB is necessary. This is easy to setup using the instructions at the wwPDB: \url{http://www.wwpdb.org/downloads.html}.
+
+You want the PDB formatted version of the PDB (not the mmCIF or XML versions). Specifically, the directory ending in {\tt structures/divided/pdb/}.
+
+\subsection{Compiling C programs}
+Several C programs are used by the program, and binaries are provided for x86\_64/o64 CPUs. If you use a different architecture, recompile these programs by running make in the src/auxil directory:
+
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+cd /usr/local/software/modtie/src/auxil
+make
+\end{lstlisting}
+
+\subsection{Specifying local configuration details}
+Edit modtie.pm to specify your local configuration details, lines 108-129.
+\begin{itemize}
+\item Specify the installation location:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{root} => '/usr/local/software/modtie/';
+\end{lstlisting}
+
+\item Specify the directory to store retrieved and generated files:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{runroot} = '/MY/FAVORITE/RUN/PATH' ;
+\end{lstlisting}
+
+\item Specify the PDB mirror location.
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{pdb_dir} = '/PDB_DIRECTORY/structures';
+\end{lstlisting}
+
+\item Specify the MODELLER binary location:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{modeller_bin} = '/MODELLER_PATH/mod9v4';
+\end{lstlisting}
+
+\item Specify the SGE compute cluster. The lines of interest start with:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+$modtie_specs->{cluster}->{OPTION} = VALUE ;
+\end{lstlisting}
+
+\begin{enumerate}
+   \item {\tt head\_node} - this is the name of the machine from which jobs can be submitted; make sure you have passwordless ssh setup between your local machine and the cluster head node. If you can submit directly from your local machine, set this to blank: ``''.
+   \item {\tt cluster\_mode} - if 1, uses a cluster by default. if 0, will not.
+   \item {\tt qstat\_sleep} - how often to qstat the jobs (sec)
+   \item {\tt priority} - the job priority to use in the submission
+   \item {\tt numjobs} - maximum number of compute nodes to use.
+\end{enumerate}
+\end{itemize}
+
+
+\subsection{Place the perl library in your PERL5LIB path}
+Place the directory containing modtie.pm (src/perl\_api) in your PERL5LIB environment variable:
+
+For example, if you run a csh or tcsh shell, add this to your .cshrc file:
+\begin{lstlisting}
+setenv PERL5LIB {$PERL5LIB}:/usr/local/software/modtie/src/perl_api
+\end{lstlisting}
+
+For a bash shell, add this to your .bashrc:
+\begin{lstlisting}
+PERL5LIB=/usr/local/software/modtie/src/perl_api:$PERL5LIB
+export PERL5LIB
+\end{lstlisting}
+
+\part{Running MODTIE}
+
+\section{{\tt runmodtie.modbase.pl} - Predict interactions between protein sequences}
+
+This program predicts interactions between sets of proteins using homology models built and stored in MODBASE \url{http://salilab.org/modbase}.
+This is useful for making genome-wide predictions of intra- or inter-species protein interactions.
+
+\subsection{What does this program do exactly?}
+This program performs the following steps, as indicated by the {\tt message that the program prints to STDERR}:
+
+\begin{enumerate}
+
+\item Retrieve model information from MODBASE ($\sim$30min for 3000 sequences)
+
+\item Assign domain boundaries and classification to models (SGE parallel): 
+{\tt Running assign\_model\_domains}
+
+\item Assign domains to sequences, by tiling together model domains (fast): 
+{\tt Running assign\_seqid\_domains}
+
+\item Determine first residue number in each model PDB file (fast): {\tt Running calc\_model\_pdbstart}
+
+\item Compute domain architecture strings for each sequence (fast): {\tt Running assign\_seqid\_domarch}
+
+\item Generate initial candidate interaction list. Given model domains and template complexes, determine what candidate interactions are possible, and correspondingly what target domain PDB files must be generated and what pairs of target and template domains must be aligned. (fast): {\tt Running candidate generator (ali, cut lister)}
+
+\item Cut target domains out of model PDB files. (SGE parallel):
+{\tt Cutting up target domains}
+
+\item Align target to template domains (SGE parallel):
+{\tt Running alignments}
+
+\item Re-generate candidate interaction list taking into account the alignment results (fast): {\tt Re-running candidate generator}
+
+\item Score candidate binary interactions using the target-template alignments and the structure of the template complex. (SGE parallel): {\tt Assessing binary interactions}
+
+\item Determine higher-order complexes that are possible given the binary interactions that passed the filter above. (fast): {\tt Building higher-order complexes}
+\end{enumerate}
+
+
+\subsection{Preparing input}
+
+The input to the program is one or two lists of MODBASE sequence identifiers (seq\_id). There are a couple ways to get this:
+\begin{enumerate}
+\item Pre-built MODBASE models: MODBASE attempts to model most protein sequences available in public databases, so your sequences of interest are most likely in the database. You can convert database identifiers ({\it eg}, UniProt, ENSMBL) to seq\_id identifiers at the MODBASE website: \url{https://modbase.compbio.ucsf.edu/modbase-cgi/sequence_utility.cgi}.
+
+\item Fresh MODBASE models: To build fresh models for you sequences, make an account on the ModWeb server (\url{http://salilab.org/modweb}) and submit your sequences. The ModWeb server uses a cookie to authenticate your account; this cookie is necessary for MODTIE to access the resulting models. Grep the line containing modbase.compbio.ucsf.edu and user\_name from your web browser's cookie file. For example, from firefox:
+
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+grep modbase.compbio.ucsf.edu .mozilla/firefox/6yf4vf8n.default/cookies.txt | grep user_name > my_modweb_cookie.txt
+\end{lstlisting}
+
+Store this line in a text file and specify its location with the {\tt -modbase-cookies} option.
+\end{enumerate}
+
+\subsection{Running}
+
+To predict interactions among one set of proteins:
+
+\lstset{breaklines=true,language=bash}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+perl runmodtie.modpiperun.pl -seqid_set seqid_list.txt
+\end{lstlisting}
+
+
+To predict interactions between two sets of proteins - {\it eg,} for host--pathogen interactions:
+\begin{lstlisting}
+perl runmodtie.modpiperun.pl -seqid_set1 seqid_list1.txt -seqidset2 seqid_list2.txt
+\end{lstlisting}
+
+\subsection{Options}
+
+\begin{itemize}
+\item {\tt -cluster\_fl $<$0$|$1$>$} (optional)
+
+if 1 will run the query in parallel using an SGE computing cluster, as specified in modtie.pm. (Defaults to 1, cluster mode on).
+
+\item {\tt-run MODPIPE\_RUNNAME} (optional)\\
+{\tt -run1 MODPIPE\_RUNNAME} (optional)\\
+{\tt -run2 MODPIPE\_RUNNAME} (optional)
+
+if specified, will restrict the MODBASE data to a specific MODPIPE run: {\it eg}, human\_2008
+
+use -run for intra-set runs; use -run1 and -run2 for inter-set runs
+
+\item {\tt-modweb\_cookie COOKIEFILE} (optional)
+
+Necessary to access MODBASE files generated by a ModWeb server submission. See {\bf Preparing input}, above.
+\end{itemize}
+
+\subsection{Options to restart incomplete runs}
+
+MODTIE stores output at the end of each step. In case a run dies before completion, it can be restarted using the results of the completed steps, so that these don't have to be rerun.
+
+\begin{itemize}
+   \item {\tt -seqid\_setinfo seqid\_setinfo\_XXXXX.modtie} - sequence set information
+   \item {\tt -model\_list model\_list\_XXXXX.modtie} - model information retrieved from MODBASE
+   \item {\tt -model\_domains model\_domains\_out\_XXXX.modtie} - model domain assignments
+   \item {\tt -seqid\_domains seqid\_domains\_out\_XXXX.modtie} - sequence domain assignments
+   \item {\tt -model\_pdbstart model\_pdbstart\_out\_XXXX.modtie} - model PDB files' first residue numbers
+   \item {\tt -seqid\_domainarch seqid\_domainarch\_out\_XXXX.modtie} - sequence domain architecture strings
+   \item {\tt -cutlist cutlist\_out\_XXXXX.modtie} - list of target domains to extract from model PDB files
+   \item {\tt -cuts\_done 1} - specify if the domain cutting step finished properly
+   \item {\tt -alilist alilist\_out\_XXXXX.modtie} - list of alignments to perform
+   \item {\tt -ali\_done 1} - specify if the alignment step finished properly
+   \item {\tt -postali\_candilist postali\_candilist\_out\_XXXXX.modtie} - candidate list of target domain interactions after considering alignment quality
+   \item {\tt -binscores binscores\_out\_XXXXX.modtie} - scoring results for candidate binary interactions
+\end{itemize}
+
+For example, I had to kill a run during the "Running candidate generator" step. The run was originally started with the following command:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+perl /MODTIEPATH/runmodtie.modbase.pl -seqid_set get_mtuber_seqid.out -run mtuber 2>run_mtuber.$$.err >run_mtuber.$$.out
+\end{lstlisting}
+
+To restart the run, I specified all the intermediate files from the steps that had completed:
+\lstset{breaklines=true,language=bash,breakatwhitespace=true}
+\lstset{frame=single}
+\lstset{basicstyle=\ttfamily}
+\begin{lstlisting}
+perl /MODTIEPATH/runmodtie.modbase.pl -seqid_set get_mtuber_seqid.out -run mtuber -model_domains model_domains_out_gCwr9.modtie -model_list model_list_0zOOA.modtie -seqid_domainarch seqid_domainarch_out_klhZw.modtie -seqid_domains seqid_domains_out_z2R9Q.modtie -seqid_setinfo seqid_setinfo_2FHeR.modtie 2>run_mtuber.$$.err >run_mtuber.$$.out
+\end{lstlisting}
+
+\subsection{Options for inter-set (host-pathogen) runs}
+The restart options are also useful for host--pathogen runs. For example, if the domain assignments were previously calculated during intra-set runs for the host and pathogen proteins, the corresponding files can be concatenated with a simple 'cat', and the location of the new merged file specified by the options above, {\it eg,} {\tt -model\_domains}. This would prevent redundant calculation of the domain assignments.
+
+\subsection{Output}
+All of the output files have header lines that describe the contents. The most useful output files are probably (1) the binscores file describing binary interactions and (2) the complexes file describing higher order complexes.
+
+\subsubsection{Binscores}
+Tab-delimited fields:
+\begin{enumerate}
+\item INTERFACE
+\item template domain 1
+\item template domain 2
+\item seq\_id 1
+\item model\_id 1
+\item residue range 2
+\item SCOP family domain 1
+\item seq\_id 2
+\item model\_id 2
+\item residue range 2
+\item SCOP family domain 2
+\item number of template contacts
+\item number of contacts aligned to target domains
+\item statistical potential location
+\item statistical potential type
+\item statistical potential details
+\item statistical potential distance cutoff
+\item raw score
+\item Z-score
+\item Z-prime = Z-score - lowest Z-score of a true negative
+\item Z-2 = Z-score - lowest observed Z-score
+\item average raw score
+\item lowest raw score
+\item lowest raw score of a true negative
+\item standard deviation of raw score
+\item lowest Z-score
+\item lowest Z-score of a true negative
+\item false positives
+\item RMSD of alignment between target and template domain 1
+\item Number of equivalent positions between target and template domain 1
+\item Number of residues in template domain 1
+\item Number of residues in target domain 1
+\item Number of residues identical between target and template domain 1
+\item Number of template residues in binding site 1
+\item Number of target residues in binding site 1
+\item Number of residues identical between target and template binding site 1
+\item RMSD of alignment between target and template domain 2
+\item Number of equivalent positions between target and template domain 2
+\item Number of residues in template domain 2
+\item Number of residues in target domain 2
+\item Number of residues identical between target and template domain 2
+\item Number of template residues in binding site 2
+\item Number of target residues in binding site 2
+\item Number of residues identical between target and template binding site 2
+\end{enumerate}
+
+\subsubsection{Complexes}
+Two kinds of lines are generated: those that start with '\#' that contain a summary of the complex, and the other lines that describe the details of the components.
+
+Summary lines:
+\begin{enumerate}
+\item \#compl
+\item cid - numerical identifier unique to each complex
+\item number of subunits (target domains)
+\item average score of interfaces in the complex
+\item maximum score of interfaces in the complex
+\item list of template domains
+\item original\_cids - list of the original complex CID if this complex is a merger of other complexes.
+\end{enumerate}
+
+Detail lines:
+\begin{enumerate}
+\item cid
+\item subunit number
+\item seq\_id
+\item model\_id
+\item resdue range
+\item template domain
+\item SCOP family
+\item average score of interfaces involving this subunit
+\item maximum score of interfaces involving this subunit
+\end{enumerate}
+
+
+\section{{\tt runmodtie.targetstrxs\_template.pl} - Score interaction between two protein structures given a template complex structure}
+
+This program scores the putative interaction between two target domains based on a template complex. It first calls MODELLER to align the target structures onto the corresponding domains of the template complex, calculates the putative interface contacts, and then scores them using the MODTIE statistical potential.
+
+\subsection{Input}
+
+Tab-delimited input specified on STDIN; each line specifies a target or template domain.
+\begin{enumerate}
+   \item Complex name
+   \item 'template' or 'target'
+   \item Domain name - have to use same name for corresponding domain in template and target structures
+   \item PDB file name
+   \item Start residue number (leave blank to use the chain start)
+   \item End residue number (leave blank to use the chain end)
+   \item Chain identifier (leave blank if no chain identifier)
+\end{enumerate}
+
+If the domain has multiple fragments, describe them in additional fields resembling 5-7. For example, fields 8-10 would describe the start/end/chain of the second domain fragment.
+
+\subsection{Output}
+
+Results are displayed to a file called {\tt complexscores.XXXXX.out.modtie}, where {\tt XXXXX} is a random string. Two kinds of lines are generated: COMPLEX lines describing the overall scores of a complex, and INTERFACE lines describing individual domain--domain interfaces.\\
+
+The lines are tab-delimited with the following fields:\\
+COMPLEX lines:
+\begin{enumerate}
+   \item COMPLEX
+   \item complex\_id
+   \item list of domains
+   \item statistical potential location
+   \item statistical potential type
+   \item statistical potential details
+   \item statistical potential distance cutoff
+   \item raw score
+   \item Z-score
+   \item Z-prime = Z-score - lowest Z-score of a true negative
+   \item Z-2 = Z-score - lowest observed Z-score
+   \item average raw score
+   \item lowest raw score
+   \item lowest raw score of a true negative
+   \item standard deviation of raw score
+   \item lowest Z-score
+   \item lowest Z-score of a true negative
+   \item False positives
+\end{enumerate}
+
+INTERFACE lines:
+\begin{enumerate}
+   \item INTERFACE
+   \item complex\_id
+   \item domain 1
+   \item domain 2
+   \item statistical potential location
+   \item statistical potential type
+   \item statistical potential details
+   \item statistical potential distance cutoff
+   \item raw score
+   \item Z-score
+   \item Z-prime = Z-score - lowest Z-score of a true negative
+   \item Z-2 = Z-score - lowest observed Z-score
+   \item average raw score
+   \item lowest raw score
+   \item lowest raw score of a true negative
+   \item standard deviation
+   \item lowest Z-score
+   \item lowest Z-score of a true negative
+   \item False positives
+\end{enumerate}
+
+\section{{\tt runmodtie.scorecomplex.pl} - Score the structure of a protein complex}
+
+This program takes as input a PDB file and domain definitions. It then scores each domain--domain interface in the file.
+
+\subsection{Input}
+Tab-delimited input provided through STDIN specifies the domain definitions:
+\begin{enumerate}
+   \item PDB file name
+   \item Domain identifier
+   \item Start residue number (leave blank if at the chain start)
+   \item End residue number (leave blank if at the chain end)
+   \item Chain identifier (leave blank if no chain identifier)
+\end{enumerate}
+
+To describe additional domains, or domain fragments, you can either add additional lines, or repeat fields resembling 2-5 (domain identifier/start/end/chain) at the end of the line.
+
+
+\subsection{Options}
+\begin{itemize}
+   \item {\tt -out\_scores\_fn OUTPUT\_FILE}
+
+Use this option to specify the output file name. By default, the results are displayed to a file named as {\tt complexscores.XXXXX.out.modtie}, where {\tt XXXXX} is a random string.
+
+\end{itemize}
+
+\subsection{Output}
+
+Results are displayed to a file called {\tt complexscores.XXXXX.out.modtie}, where {\tt XXXXX} is a random string. Two kinds of lines are generated: COMPLEX lines describing the overall scores of a complex, and INTERFACE lines describing individual domain--domain interfaces.\\
+
+The lines are tab-delimited with the following fields:\\
+COMPLEX lines:
+\begin{enumerate}
+   \item COMPLEX
+   \item PDB file name
+   \item list of domains
+   \item statistical potential location
+   \item statistical potential type
+   \item statistical potential details
+   \item statistical potential distance cutoff
+   \item raw score
+   \item Z-score
+   \item Z-prime = Z-score - lowest Z-score of a true negative
+   \item Z-2 = Z-score - lowest observed Z-score
+   \item average raw score
+   \item lowest raw score
+   \item lowest raw score of a true negative
+   \item standard deviation of raw score
+   \item lowest Z-score
+   \item lowest Z-score of a true negative
+   \item False positives
+\end{enumerate}
+
+INTERFACE lines:
+\begin{enumerate}
+   \item INTERFACE
+   \item PDB file name
+   \item domain 1
+   \item domain 2
+   \item statistical potential location
+   \item statistical potential type
+   \item statistical potential details
+   \item statistical potential distance cutoff
+   \item raw score
+   \item Z-score
+   \item number of interface contacts
+   \item Z-prime = Z-score - lowest Z-score of a true negative
+   \item Z-2 = Z-score - lowest observed Z-score
+   \item average raw score
+   \item lowest raw score
+   \item lowest raw score of a true negative
+   \item standard deviation of raw score
+   \item lowest Z-score
+   \item lowest Z-score of a true negative
+   \item False positives
+\end{enumerate}
+
+\section{Citing}
+\begin{itemize}
+\item For interaction predictions within a single species, or to score protein complexes, please cite:\\Davis FP, Braberg H, Shen MY, Pieper U, Sali A, Madhusudhan MS. {\it Nucleic Acids Res} (2006) 34:2943-2952.
+
+\item For cross-species predictions, such as host--pathogen interactions, please cite:\\Davis FP, Barkan DT, Eswar N, McKerrow JH, Sali A. {\it Protein Sci} (2007) 16:2585-2596.
+\end{itemize}
+
+\end{document}

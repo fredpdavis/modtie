@@ -1,0 +1,106 @@
+-------------------------------------------------------------------------------
+MODTIE: structure-based prediction of binary and higher-order protein complexes
+v1.11. Released Oct 8, 2010.
+Copyright 2005,2010 Fred P. Davis
+-------------------------------------------------------------------------------
+
+http://fredpdavis.com/modtie
+
+ MODTIE predicts binary protein interactions and higher-order protein
+ complexes from a set of protein sequences based on their similarity to
+ template complexes of known structure. It can be used for genome-wide
+ prediction, through interaction with the MODBASE database of comparative
+ models (http://salilab.org/modbase), or to score individual protein
+ complexes. This package contains the software that implements the method.
+
+ MODTIE v1.11 uses:
+ * template structures from PIBASE v2010
+ * domain definitions from SCOP v1.75
+
+
+o Using MODTIE
+--------------
+ This package contains the software used to make predictions using MODTIE.
+ Three programs are included for typical prediction purposes:
+
+ 1. runmodtie.modbase.pl - Predict interactions between protein sequences
+                           using comparative models available in MODBASE
+
+ 2. runmodtie.targetstrxs_template.pl - Score interactions between two
+                  protein structures given a template complex structure
+
+ 3. runmodtie.scorecomplex.pl - Score the structure of a protein complex
+
+ The code is mostly in Perl, with some C code for more expensive computations.
+ A users manual is provided describing the installation procedure and three
+ typical run modes.
+
+
+o Downloading MODTIE
+--------------------
+
+ The software package is available at http://fredpdavis.com/modtie
+
+ The four data files used by the package are available from Zenodo:
+ https://zenodo.org/record/29594
+
+ 1. modtie_data.modtie_v1.11.tgz (55 MB)
+ 2. pibase2010_subsets_residues.modtie_v1.11.tar (519 MB)
+ 3. pibase2010_bdp_residues.modtie_v1.11.tar (680 MB)
+ 4. pibase2010_data.modtie_v1.11.tar (425 MB)
+
+
+o History
+---------
+ MODTIE was developed at the University of California, San Francisco in the
+ laboratory of Andrej Sali (http://salilab.org) and continued at the
+ Janelia Research Campus of the Howard Hughes Medical Institute
+ (http://janelia.org).
+
+ Changes
+ -------
+ * v1.11  adjusts for new residue numbering scheme in MODBASE
+ * v1.1   upgrade to new PIBASE v2010 and SCOP domains v1.75
+
+
+o Citing MODTIE
+---------------
+ If you use the software to predict protein interactions within a single
+ species, or to score protein complexes, please cite:
+
+ Protein complex compositions predicted by structural similarity.
+ Davis FP, Braberg H, Shen MY, Pieper U, Sali A, Madhusudhan MS.
+ Nucleic Acids Res (2006) 34:2943-2952.
+
+
+ If you use the software to predict inter-species protein interactions,
+ such as host--pathogen interactions, please cite:
+
+ Host-pathogen protein interactions predicted by comparative modeling.
+ Davis FP, Barkan DT, Eswar N, McKerrow JH, Sali A.
+ Protein Sci (2007) 16:2585-2596.
+
+
+o Contact information
+---------------
+ Fred P. Davis
+ email: fredpdavis@gmail.com
+ web:   http://fredpdavis.com
+
+
+This file is part of MODTIE.
+
+MODTIE is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+MODTIE is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with MODTIE.  If not, see <http://www.gnu.org/licenses/>.
+
+----------------------------------------------------------------------------
